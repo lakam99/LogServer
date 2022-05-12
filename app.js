@@ -2,12 +2,14 @@ var express = require('express');
 var parser = require('body-parser');
 var fs = require('fs');
 var moment = require('moment');
+var path = require('path');
+var auth_path = path.join(__dirname, '/auth-token.json');
 
 var LogServer = {
     server:express(),
 
     start() {
-        LogServer.auth_path = fs.readFileSync('./auth-token.json');
+        LogServer.auth_path = fs.readFileSync(auth_path);
         LogServer.server.options('*', (req,res,next)=>{LogServer.setHeaders(res); res.send(200)});
         LogServer.server.use((req,res,next)=>{LogServer.setHeaders(res);next()});
         LogServer.server.use(parser.json());
@@ -28,7 +30,7 @@ var LogServer = {
 
     get_tokens() {
         return new Promise((resolve,reject)=>{
-            fs.readFile('./auth-token.json', 'utf-8', (e,d)=>{
+            fs.readFile(auth_path, 'utf-8', (e,d)=>{
                 if (e) reject(e);
                 else resolve(JSON.parse(d));
             })
@@ -45,11 +47,13 @@ var LogServer = {
 
     __writeToLog(req_data) {
         return new Promise((resolve,reject)=>{
+            if (typeof req_data == 'string') req_data = JSON.parse(req_data);
             var {pc_name, log_str} = req_data;
+            if (typeof log_str != 'string') log_str = log_str.value;
             if (!pc_name || !log_str) reject(`PC Name '${pc_name}' or log '${log_str}' contain an empty value.`);
             else {
                 var now = moment().format('MM-DD-Y');
-                fs.writeFile(`./logs/${now} - ${pc_name}.log`, log_str, (e)=>{
+                fs.writeFile(path.join(__dirname,`/logs/${now} - ${pc_name}.log`), log_str, (e)=>{
                     if (!e) resolve(true);
                     else reject(e);
                 })
